@@ -1,0 +1,16 @@
+{
+  "name": "Ancla",
+  "short_name": "Ancla",
+  "description": "Tu día y tu semana bajo control, sin conexión.",
+  "lang": "es",
+  "start_url": "./index.html#hoy",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16324a",
+  "theme_color": "#16324a",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
