@@ -124,11 +124,38 @@ details summary{cursor:pointer;font-weight:700}
 .barcol .v{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
 .barcol .lbl{font-size:11px;color:var(--muted);white-space:nowrap}
 .goal-line{position:relative}
+/* Plantilla tipo calendario: cuadrícula de horas con bloques posicionados, hoja inferior para editar */
+.cal{position:relative;max-height:62vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.cal-in{position:relative;margin:10px 6px 10px 50px}
+.cal-h{position:absolute;left:-50px;right:0;height:0;border-top:1px solid var(--line)}
+.cal-h span{position:absolute;left:4px;top:-8px;font-size:11px;color:var(--muted);background:var(--bg);padding:0 3px}
+.cal-h::after{content:"";position:absolute;left:50px;right:0;top:26px;border-top:1px dashed color-mix(in srgb,var(--line) 70%,transparent)}
+.cal-col{position:absolute;inset:0;cursor:pointer}
+.cal-col,.ev,.sheet button{-webkit-tap-highlight-color:transparent}
+.ev{position:absolute;border-radius:8px;padding:3px 7px;background:color-mix(in srgb,var(--k) 24%,var(--surface));border-left:4px solid var(--k);overflow:hidden;font-size:13px;line-height:1.25;display:flex;flex-direction:column;cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.ev b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev .mono{font-size:11px;color:var(--muted)}
+.ev.short{flex-direction:row;gap:6px;align-items:center;padding-block:0}
+.ev.drag{box-shadow:0 6px 18px rgba(0,0,0,.28);z-index:5;cursor:grabbing;outline:2px solid var(--k)}
+.rz{position:absolute;left:0;right:0;bottom:0;height:14px;cursor:ns-resize;touch-action:none}
+.rz::after{content:"";position:absolute;left:50%;bottom:4px;width:22px;height:3px;margin-left:-11px;border-radius:2px;background:var(--k);opacity:.75}
+.cal-now{position:absolute;left:-4px;right:0;height:0;border-top:2px solid var(--buoy);z-index:4;pointer-events:none}
+.cal-now::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--buoy)}
+.sheet-back{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.38);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:10px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:88vh;overflow-y:auto;box-shadow:0 -8px 24px rgba(0,0,0,.2)}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+.sheet .ttl{font-size:20px;font-family:var(--f-display);font-weight:600;border:0;border-bottom:2px solid var(--line);border-radius:0;background:transparent;padding:6px 2px}
+.sheet .ttl:focus{border-bottom-color:var(--buoy);outline:none}
+.kchips{display:flex;flex-wrap:wrap;gap:6px}
+.kchips button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 11px;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.kchips button i{width:10px;height:10px;border-radius:50%;background:var(--k)}
+.kchips button[aria-pressed="true"]{border-color:var(--k);background:color-mix(in srgb,var(--k) 24%,var(--surface))}
 @media (prefers-reduced-motion: no-preference){.chk,.blk,.btn{transition:background .15s,border-color .15s,opacity .15s}}
 </style>
 
 <div class="wrap" id="app"></div>
 <div id="toast" class="toast" hidden></div>
+<div id="sheet" class="sheet-back" hidden></div>
 <button class="fab" id="fab" aria-label="Capturar una idea">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
 </button>
@@ -299,14 +326,137 @@ function vSemana(){
    <input id="w-p" data-f="w" data-n="p" data-k="${wk}" value="${esc(W.p)}" placeholder="Plan: si pasa ___, entonces ___"></div></details></section>`;
   // plantilla
   const T=S.template[ui.tplDay]||(S.template[ui.tplDay]=[]);
-  h+=`<section class="card"><h2>Plantilla semanal</h2><div class="muted small">Tus bloques fijos. Se repiten cada semana.</div><div class="seg" role="group" aria-label="Día">`;
-  [1,2,3,4,5,6,0].forEach(i=>{h+=`<button data-a="tpld" data-i="${i}" aria-pressed="${ui.tplDay===i}">${DOW[i].slice(0,3)}</button>`});
-  h+=`</div>`;
-  T.forEach((b,i)=>{h+=`<div class="edit-row"><input id="tp-s-${i}" type="time" data-f="tp" data-n="s" data-i="${i}" value="${b.s}" aria-label="Inicio"><input id="tp-e-${i}" type="time" data-f="tp" data-n="e" data-i="${i}" value="${b.e}" aria-label="Fin"><input id="tp-t-${i}" data-f="tp" data-n="t" data-i="${i}" value="${esc(b.t)}" aria-label="Nombre del bloque">
-    <select id="tp-k-${i}" data-f="tp" data-n="k" data-i="${i}" aria-label="Tipo">${Object.entries(KINDS).map(([kk,v])=>`<option value="${kk}" ${b.k===kk?"selected":""}>${v[0]}</option>`).join("")}</select><button class="btn small ghost del" data-a="tpdel" data-i="${i}">Quitar</button></div>`});
-  h+=`<button class="btn" data-a="tpadd">Añadir bloque</button></section>`;
+  h+=`<section class="card"><div class="row spread"><h2>Plantilla semanal</h2><button class="btn small primary" data-a="tpadd">+ Bloque</button></div>
+  <div class="muted small">Toca un hueco para crear un bloque. Mantén pulsado un bloque para moverlo y arrastra su borde de abajo para cambiar la duración. Se repiten cada semana.</div><div class="seg" role="group" aria-label="Día">`;
+  [1,2,3,4,5,6,0].forEach(i=>{const n=(S.template[i]||[]).length;h+=`<button data-a="tpld" data-i="${i}" aria-pressed="${ui.tplDay===i}">${DOW[i].slice(0,3)}<span class="muted" style="font-weight:400"> ${n||""}</span></button>`});
+  h+=`</div>`+calHtml(ui.tplDay)+`</section>`;
   return h;
 }
+
+/* ---------- CALENDARIO DE PLANTILLA ---------- */
+const HH=52,PM=HH/60,MAXM=23*60+59;
+function hm(m){m=Math.max(0,Math.min(MAXM,Math.round(m)));return pad(Math.floor(m/60))+":"+pad(m%60)}
+function fmtDur(m){if(m<=0)return "—";const h=Math.floor(m/60),r=m%60;return h?(h+" h"+(r?" "+r:"")):(r+" min")}
+function endM(b){const s=mins(b.s);let e=mins(b.e);if(e<=s)e=s+15;return e}
+function sortT(d){(S.template[d]||[]).sort((x,y)=>mins(x.s)-mins(y.s))}
+function calRange(T){let a=6;T.forEach(x=>{a=Math.min(a,Math.floor(mins(x.s)/60))});return [Math.max(0,a),24]}
+function layout(T){
+  // columnas para bloques que se solapan, como en Google Calendar
+  const idx=T.map((b,i)=>i).sort((x,y)=>mins(T[x].s)-mins(T[y].s)||endM(T[y])-endM(T[x]));
+  const out={};let cl=[],cols=[],clEnd=-1;
+  const flush=()=>{const n=cols.length;cl.forEach(c=>out[c.i]={col:c.col,n});cl=[];cols=[]};
+  idx.forEach(i=>{const s=mins(T[i].s),e=endM(T[i]);
+    if(cl.length&&s>=clEnd)flush();
+    let c=cols.findIndex(x=>x<=s);if(c<0){c=cols.length;cols.push(e)}else cols[c]=e;
+    cl.push({i,col:c});clEnd=Math.max(clEnd,e)});
+  flush();return out;
+}
+function calHtml(dow){
+  const T=S.template[dow]||[],[h0,h1]=calRange(T),L=layout(T);
+  let h=`<div class="cal" id="cal" data-h0="${h0}"><div class="cal-in" style="height:${(h1-h0)*HH}px">`;
+  for(let x=h0;x<h1;x++)h+=`<div class="cal-h" style="top:${(x-h0)*HH}px"><span class="mono">${pad(x)}:00</span></div>`;
+  h+=`<div class="cal-col" id="calcol" aria-label="Toca un hueco para crear un bloque">`;
+  T.forEach((b,i)=>{const s=mins(b.s),e=endM(b),l=L[i]||{col:0,n:1},kd=KINDS[b.k]||KINDS.personal;
+    h+=`<div class="ev ${e-s<45?"short":""}" data-ev="${i}" tabindex="0" role="button" aria-label="${esc(b.t)}, de ${b.s} a ${b.e}. Toca para editar" style="--k:var(${kd[1]});top:${(s-h0*60)*PM}px;height:${(e-s)*PM-2}px;left:calc(${l.col} * 100% / ${l.n});width:calc(100% / ${l.n} - 3px)"><b>${esc(b.t)}</b><span class="mono">${b.s}–${b.e}</span><span class="rz" aria-hidden="true"></span></div>`});
+  if(dow===new Date().getDay()){const nm=nowMins();if(nm>=h0*60&&nm<h1*60)h+=`<div class="cal-now" style="top:${(nm-h0*60)*PM}px"></div>`}
+  h+=`</div></div></div>`;return h;
+}
+function openEd(d,i,s,e){
+  const T=S.template[d]||[],b=i>=0?T[i]:null;
+  ui.ed={d,i,s:b?b.s:s,e:b?hm(endM(b)):e,t:b?b.t:"",k:b?b.k:"personal",also:[]};
+  renderSheet();
+  if(!b)setTimeout(()=>{const t=document.getElementById("sh-t");t&&t.focus()},60);
+}
+function closeSheet(){ui.ed=null;renderSheet();render()}
+function renderSheet(){
+  const el=document.getElementById("sheet"),E=ui.ed;
+  if(!E){el.hidden=true;el.innerHTML="";return}
+  const dur=mins(E.e)-mins(E.s),nuevo=E.i<0;
+  el.hidden=false;
+  el.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="${nuevo?"Nuevo bloque":"Editar bloque"}"><div class="grab"></div>
+  <div class="row spread"><h3>${nuevo?"Nuevo bloque":"Editar bloque"} · ${DOW[E.d]}</h3><button class="btn ghost small" data-sa="close" aria-label="Cerrar">✕</button></div>
+  <input class="ttl" id="sh-t" data-sf="t" value="${esc(E.t)}" placeholder="Añade un título" autocomplete="off" enterkeyhint="done">
+  <div class="kchips" role="group" aria-label="Tipo de bloque">${Object.entries(KINDS).map(([kk,v])=>`<button data-sa="kind" data-k="${kk}" aria-pressed="${E.k===kk}" style="--k:var(${v[1]})"><i></i>${v[0]}</button>`).join("")}</div>
+  <div class="row"><input type="time" id="sh-s" data-sf="s" value="${E.s}" aria-label="Hora de inicio"><span class="muted">a</span><input type="time" id="sh-e" data-sf="e" value="${E.e}" aria-label="Hora de fin"><span class="muted small mono" id="sh-d">${fmtDur(dur)}</span></div>
+  <div class="seg" role="group" aria-label="Duración">${[30,60,90,120,180].map(m=>`<button data-sa="dur" data-m="${m}" aria-pressed="${dur===m}">${fmtDur(m)}</button>`).join("")}</div>
+  <div><div class="small muted" style="margin-bottom:6px">${nuevo?"Repetir también el":"Copiar también al"}</div><div class="seg" role="group" aria-label="Otros días">${[1,2,3,4,5,6,0].filter(x=>x!==E.d).map(x=>`<button data-sa="also" data-d="${x}" aria-pressed="${E.also.includes(x)}">${DOW[x].slice(0,3)}</button>`).join("")}</div></div>
+  <div class="row spread">${nuevo?"<span></span>":'<button class="btn ghost" data-sa="del" style="color:var(--buoy)">Eliminar</button>'}<div class="row"><button class="btn ghost" data-sa="close">Cancelar</button><button class="btn primary" data-sa="save">Guardar</button></div></div></div>`;
+}
+function updDur(){const E=ui.ed,d=mins(E.e)-mins(E.s),el=document.getElementById("sh-d");if(el)el.textContent=fmtDur(d);
+  document.querySelectorAll('#sheet [data-sa="dur"]').forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.m===d)))}
+function saveEd(){
+  const E=ui.ed;if(mins(E.e)<=mins(E.s)){toast("La hora de fin tiene que ser después del inicio");return}
+  const blk=B(E.s,E.e,E.t.trim()||KINDS[E.k][0],E.k);
+  const T=S.template[E.d]=S.template[E.d]||[];
+  if(E.i>=0)T[E.i]=blk;else T.push(blk);
+  E.also.forEach(d=>{(S.template[d]=S.template[d]||[]).push(Object.assign({},blk));sortT(d)});
+  sortT(E.d);save();const n=E.also.length;ui.ed=null;renderSheet();render();
+  toast(n?`Guardado en ${n+1} días`:"Bloque guardado");
+}
+(function(){
+  const sh=document.getElementById("sheet");
+  sh.addEventListener("click",e=>{
+    if(e.target===sh){closeSheet();return}
+    const b=e.target.closest("[data-sa]");if(!b||!ui.ed)return;const E=ui.ed,a=b.dataset.sa;
+    if(a==="close"){closeSheet();return}
+    if(a==="save"){saveEd();return}
+    if(a==="del"){const T=S.template[E.d],t=T[E.i].t;T.splice(E.i,1);save();closeSheet();toast(`"${t}" eliminado`);return}
+    if(a==="kind")E.k=b.dataset.k;
+    else if(a==="dur")E.e=hm(Math.min(mins(E.s)+(+b.dataset.m),MAXM));
+    else if(a==="also"){const d=+b.dataset.d;E.also=E.also.includes(d)?E.also.filter(x=>x!==d):E.also.concat(d)}
+    const t=document.getElementById("sh-t");if(t)E.t=t.value;
+    renderSheet();
+  });
+  sh.addEventListener("input",e=>{
+    const f=e.target.dataset.sf;if(!f||!ui.ed)return;const E=ui.ed,v=e.target.value;
+    if(f==="t")E.t=v;
+    else if(f==="s"){if(!v)return;const d=Math.max(mins(E.e)-mins(E.s),15);E.s=v;E.e=hm(Math.min(mins(v)+d,MAXM));document.getElementById("sh-e").value=E.e}
+    else if(f==="e"){if(!v)return;E.e=v}
+    updDur();
+  });
+  sh.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="sh-t"){e.preventDefault();saveEd()}});
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&ui.ed){closeSheet();return}
+    const ev=e.target.closest&&e.target.closest(".ev");
+    if(ev&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openEd(ui.tplDay,+ev.dataset.ev)}
+  });
+  // arrastrar para mover (mantener pulsado en táctil) y borde inferior para redimensionar
+  let drag=null;ui.suppress=false;
+  function start(){if(!drag)return;drag.active=true;drag.ev.classList.add("drag");try{drag.ev.setPointerCapture(drag.id)}catch(e){}try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}}
+  document.addEventListener("pointerdown",e=>{
+    const ev=e.target.closest(".ev");if(!ev||(e.pointerType==="mouse"&&e.button!==0))return;
+    const cal=document.getElementById("cal"),b=S.template[ui.tplDay][+ev.dataset.ev];
+    drag={ev,cal,i:+ev.dataset.ev,mode:e.target.closest(".rz")?"resize":"move",active:false,y0:e.clientY,x0:e.clientX,sc0:cal.scrollTop,
+      h0:+cal.dataset.h0,s0:mins(b.s),e0:endM(b),id:e.pointerId,touch:e.pointerType!=="mouse",timer:null,s:null,e:null};
+    if(drag.mode==="resize"){e.preventDefault();start()}
+    else if(drag.touch)drag.timer=setTimeout(start,350);
+  });
+  document.addEventListener("pointermove",e=>{
+    if(!drag||e.pointerId!==drag.id)return;
+    const far=Math.abs(e.clientY-drag.y0)>6||Math.abs(e.clientX-drag.x0)>6;
+    if(!drag.active){if(!far)return;if(!drag.touch)start();else{clearTimeout(drag.timer);drag=null;return}}
+    const r=drag.cal.getBoundingClientRect();
+    if(e.clientY<r.top+30)drag.cal.scrollTop-=10;else if(e.clientY>r.bottom-30)drag.cal.scrollTop+=10;
+    const dy=e.clientY-drag.y0+(drag.cal.scrollTop-drag.sc0),dm=Math.round(dy/PM/15)*15;
+    let s=drag.s0,en=drag.e0;
+    if(drag.mode==="move"){const len=en-s;s=Math.max(drag.h0*60,Math.min(1440-len,drag.s0+dm));en=s+len}
+    else en=Math.max(s+15,Math.min(1440,drag.e0+dm));
+    drag.s=s;drag.e=en;
+    drag.ev.style.top=(s-drag.h0*60)*PM+"px";drag.ev.style.height=(en-s)*PM-2+"px";
+    drag.ev.querySelector(".mono").textContent=hm(s)+"–"+hm(en);
+  });
+  function end(e,cancel){
+    if(!drag||(e&&e.pointerId!==drag.id))return;clearTimeout(drag.timer);const d=drag;drag=null;
+    if(!d.active)return;
+    if(d.s!=null){ui.suppress=true;setTimeout(()=>ui.suppress=false,400)}
+    if(!cancel&&d.s!=null){const b=S.template[ui.tplDay][d.i];b.s=hm(d.s);b.e=hm(d.e);sortT(ui.tplDay);save();toast(`${b.t}: ${b.s}–${b.e}`)}
+    render();
+  }
+  document.addEventListener("pointerup",e=>end(e,false));
+  document.addEventListener("pointercancel",e=>end(e,true));
+  document.addEventListener("touchmove",e=>{if(drag&&drag.active)e.preventDefault()},{passive:false});
+  document.addEventListener("contextmenu",e=>{if(e.target.closest(".ev"))e.preventDefault()});
+})();
 function wizard(){
   const st=ui.wiz||0,ws=weekStart(new Date()),next=addDays(ws,(new Date().getDay()===0)?7:0),nk=keyOf(next);
   const NW=S.weeks[nk]||(S.weeks[nk]={uni:"",personal:"",habito:"",w:"",o:"",ob:"",p:""});
@@ -378,15 +528,20 @@ function summary(){
 function anchorSvg(s){return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><path d="M12 7.2V21M7 11h10M4.5 14.5a7.5 7.5 0 0 0 15 0"/></svg>`}
 
 function render(){
-  const app=document.getElementById("app");
+  const app=document.getElementById("app"),oc=document.getElementById("cal"),osc=oc?oc.scrollTop:null,same=oc&&ui.calDay===ui.tplDay;
   app.innerHTML=view==="captura"?vCaptura():view==="semana"?vSemana():view==="progreso"?vProgreso():vHoy();
+  const nc=document.getElementById("cal");
+  if(nc){if(same)nc.scrollTop=osc;else{const T=S.template[ui.tplDay]||[],f=T.length?mins(T[0].s):7*60;nc.scrollTop=Math.max(0,(f-(+nc.dataset.h0)*60-30)*PM)}ui.calDay=ui.tplDay}
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-current",t.dataset.v===view?"page":"false"));
-  document.getElementById("fab").hidden=view==="captura";
+  document.getElementById("fab").hidden=view==="captura"||view==="semana";
 }
 
 document.addEventListener("click",e=>{
   const tb=e.target.closest(".tab");if(tb){go(tb.dataset.v);return}
   if(e.target.closest("#fab")){go("captura");setTimeout(()=>{const c=document.getElementById("cap");c&&c.focus()},50);return}
+  const evb=e.target.closest(".ev");if(evb){if(!ui.suppress)openEd(ui.tplDay,+evb.dataset.ev);return}
+  const col=e.target.closest("#calcol");if(col){const cal=document.getElementById("cal"),h0=+cal.dataset.h0,r=col.getBoundingClientRect();
+    let m=h0*60+Math.floor((e.clientY-r.top)/PM/30)*30;m=Math.max(h0*60,Math.min(m,1440-60));openEd(ui.tplDay,-1,hm(m),hm(m+60));return}
   const el=e.target.closest("[data-a]");if(!el)return;const a=el.dataset.a;
   const k=keyOf(addDays(new Date(),ui.dayOffset));
   if(a==="nn"){const D=day(k),x=D.nn[+el.dataset.i];if(!x.t){toast("Escribe primero qué es");return}x.done=!x.done;if(x.done)toast("Cumplido. +1")}
@@ -402,8 +557,7 @@ document.addEventListener("click",e=>{
   else if(a==="indate"){const x=S.inbox.find(x=>x.id===el.dataset.id);if(x){x.date=keyOf(addDays(new Date(),+el.dataset.o));toast(el.dataset.o==="0"?"Movido a hoy":"Movido a mañana")}}
   else if(a==="indel"){S.inbox=S.inbox.filter(x=>x.id!==el.dataset.id)}
   else if(a==="tpld"){ui.tplDay=+el.dataset.i}
-  else if(a==="tpadd"){(S.template[ui.tplDay]=S.template[ui.tplDay]||[]).push(B("18:00","19:00","Nuevo bloque","personal"))}
-  else if(a==="tpdel"){S.template[ui.tplDay].splice(+el.dataset.i,1)}
+  else if(a==="tpadd"){const T=S.template[ui.tplDay]||[];let s=T.length?Math.min(endM(T[T.length-1]),1440-60):18*60;if(ui.tplDay===new Date().getDay()&&!T.length)s=Math.min(Math.ceil(nowMins()/30)*30,1440-60);openEd(ui.tplDay,-1,hm(s),hm(s+60));return}
   else if(a==="wizopen"){ui.wiz=0}
   else if(a==="wiznext"){ui.wiz=(ui.wiz||0)+1}
   else if(a==="wizprev"){ui.wiz=Math.max(0,(ui.wiz||0)-1)}
@@ -427,7 +581,6 @@ document.addEventListener("input",e=>{
   else if(f==="tmt"){day(el.dataset.k).nn[+el.dataset.i].t=el.value}
   else if(f==="tmh"){day(el.dataset.k).nn[+el.dataset.i].h=el.value}
   else if(f==="w"){(S.weeks[el.dataset.k]=S.weeks[el.dataset.k]||{})[el.dataset.n]=el.value}
-  else if(f==="tp"){S.template[ui.tplDay][+el.dataset.i][el.dataset.n]=el.value;if(el.dataset.n!=="t"){S.template[ui.tplDay].sort((x,y)=>mins(x.s)-mins(y.s));save();render();return}}
   else if(f==="buddy"){S.settings.buddy=el.value}
   save();
 });
